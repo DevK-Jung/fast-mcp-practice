@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "fastmcp-server": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "C:\\개인\\meeting-room-mcp\\meeting-room-mcp\\scripts\\start_server.py"]
+    }
+  }
+}

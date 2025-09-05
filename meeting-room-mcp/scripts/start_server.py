@@ -6,10 +6,7 @@ from pathlib import Path
 
 # 프로젝트 루트를 Python 경로에 추가
 project_root = Path(__file__).parent.parent
-
-print(project_root)
-print(str(project_root / "src"))
-sys.path.insert(0, str(project_root / "src"))
+sys.path.insert(0, str(project_root))
 
 from src.meeting_room_mcp.server.main import main
 
