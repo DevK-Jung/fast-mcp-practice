@@ -29,7 +29,13 @@ class RoomRepository:
                 MeetingRoomEntity.id == room_id
             ).first()
 
-            return room_entity.to_model() if room_entity else None
+            if room_entity:
+                room = room_entity.to_model()
+                # 현재 시간에 예약이 있는지 확인
+                room.status = self._get_current_room_status(room_id)
+                return room
+
+            return None
 
         except Exception as e:
             logger.error(f"회의실 조회 실패 (ID: {room_id}): {e}")
@@ -56,7 +62,14 @@ class RoomRepository:
                 MeetingRoomEntity.location, MeetingRoomEntity.capacity
             ).all()
 
-            return [entity.to_model() for entity in room_entities]
+            rooms = []
+            for entity in room_entities:
+                room = entity.to_model()
+                # 현재 시간에 예약이 있는지 확인
+                room.status = self._get_current_room_status(entity.id)
+                rooms.append(room)
+
+            return rooms
 
         except Exception as e:
             logger.error(f"전체 회의실 조회 실패: {e}")
@@ -215,3 +228,35 @@ class RoomRepository:
 
         self.session.commit()
         logger.info(f"샘플 회의실 {len(sample_rooms)}개 추가됨")
+
+    def _get_current_room_status(self, room_id: int) -> RoomStatus:
+        """현재 시간 기준으로 회의실의 실제 사용 가능 상태 반환"""
+        try:
+            # 먼저 회의실의 기본 상태 확인
+            room_entity = self.session.query(MeetingRoomEntity).filter(
+                MeetingRoomEntity.id == room_id
+            ).first()
+
+            if not room_entity:
+                return RoomStatus.MAINTENANCE
+
+            # 기본 상태가 available이 아니면 그대로 반환
+            if room_entity.status != 'available':
+                return RoomStatus(room_entity.status)
+
+            # 현재 시간에 진행 중인 예약이 있는지 확인
+            current_time = datetime.now()
+            current_reservation = self.session.query(ReservationEntity).filter(
+                ReservationEntity.room_id == room_id,
+                ReservationEntity.start_time <= current_time,
+                ReservationEntity.end_time > current_time
+            ).first()
+
+            if current_reservation:
+                return RoomStatus.OCCUPIED
+
+            return RoomStatus.AVAILABLE
+
+        except Exception as e:
+            logger.error(f"회의실 상태 확인 실패 (room_id: {room_id}): {e}")
+            return RoomStatus.MAINTENANCE
